@@ -1,8 +1,5 @@
 import pandas as pd
-import plotly.express as px
 import streamlit as st
-import mysql.connector as sql
-from PIL import Image
 import sqlite3
 import streamlit_option_menu as som
 from googleapiclient.discovery import build
@@ -155,7 +152,6 @@ class DataExtraction:
                     st.success("Transformation to MySQL Successful!!!")
                 except:
                     st.error("Channel details already transformed!!")               
-#===================================================================================================================
 
     #convert List of Dictionary data into pandas data frame and store dataframe into database
     def covert_PdData_StoreSql(self,channels_data, channel_names):
@@ -193,7 +189,7 @@ class DataExtraction:
         
         #To store channel Video data
     def store_video_data(self):
-        #To store video data
+     
         dataEx.covert_PdData_StoreSql(dataEx.video_stats,"Video_Details")
         dataEx.select_tables_fromDB("""
             SELECT * from Video_Details
@@ -206,6 +202,7 @@ class DataExtraction:
         dataEx.select_tables_fromDB("""
             SELECT * from Comments_Details
             """)
+        
      #question page   
     def questionPage(self):
         
@@ -215,91 +212,81 @@ class DataExtraction:
                 DataExtraction.questions = st.selectbox('Questions',DataExtraction.questions)         
             
             if DataExtraction.questions == '1. What are the names of all the videos and their corresponding channels?':
-                cursor.execute("""SELECT title AS Video_Title, Channel_name AS Channel_Name FROM Video_Details ORDER BY Channel_name""")
-                df = pd.DataFrame(cursor.fetchall())
-                print(df)
-                st.write(df)
+                table=pd.read_sql("""SELECT title AS Video_Title, Channel_name AS Channel_Name FROM Video_Details ORDER BY Channel_name""",self.connection)
+                # df = pd.DataFrame(cursor.fetchall())
+                print(table)
+                st.write(table)
             
             elif DataExtraction.questions == '2. Which channels have the most number of videos, and how many videos do they have?':
-                cursor.execute("""SELECT channel_name 
+                table=pd.read_sql("""SELECT channel_name 
                 AS Channel_Name, Total_videos AS Total_Videos
                                     FROM Channels_Details
-                                    ORDER BY Total_videos DESC""")
-                df = pd.DataFrame(cursor.fetchall())
+                                    ORDER BY Total_videos DESC""",self.connection)
                 st.write("### :green[Number of videos in each channel :]")
-                st.write(df)
-                
-                
-                
+                st.write(table)
+                       
             elif DataExtraction.questions == '3. What are the top 10 most viewed videos and their respective channels?':
-                cursor.execute("""SELECT Channel_Name AS Channel_Name, Title AS Video_Title, ViewCount AS Views 
+                table=pd.read_sql("""SELECT Channel_Name AS Channel_Name, Title AS Video_Title, ViewCount AS Views 
                                     FROM Video_Details
                                     ORDER BY ViewCount DESC
-                                    LIMIT 10""")
-                df = pd.DataFrame(cursor.fetchall())
+                                    LIMIT 10""",self.connection)
                 st.write("### :green[Top 10 most viewed videos :]")
-                st.write(df)
+                st.write(table)
                 
             elif DataExtraction.questions == '4. How many comments were made on each video, and what are their corresponding video names?':
-                cursor.execute("""SELECT a.Video_id AS Video_id, a.Title AS Video_Title, b.Comments_Count
+                table=pd.read_sql("""SELECT a.Video_id AS Video_id, a.Title AS Video_Title, b.Comments_Count
                                     FROM Video_Details AS a
                                     LEFT JOIN (SELECT Video_id,COUNT(Comment_Id) AS Comments_Count
                                     FROM Comments_Details GROUP BY Video_id) AS b
                                     ON a.Video_id = b.Video_id
-                                    ORDER BY b.Comments_Count DESC""")
-                df = pd.DataFrame(cursor.fetchall())
+                                    ORDER BY b.Comments_Count DESC""",self.connection)
                 st.write("### :green[Comments on Videos and corresponding Title :]")
-                st.write(df)
+                st.write(table)
                 
             elif DataExtraction.questions == '5. Which videos have the highest number of likes, and what are their corresponding channel names?':
-                cursor.execute("""SELECT Channel_name AS Channel_Name,Title AS Title,LikeCount AS Likes_Count 
+                table=pd.read_sql("""SELECT Channel_name AS Channel_Name,Title AS Title,LikeCount AS Likes_Count 
                                     FROM Video_Details
                                     ORDER BY LikeCount DESC
-                                    LIMIT 10""")
-                df = pd.DataFrame(cursor.fetchall())
-                st.write(df)
+                                    LIMIT 10""",self.connection)
                 st.write("### :green[Top 10 most liked videos :]")
-                
+                st.write(table)
+                               
             elif DataExtraction.questions == '6. What is the total number of likes and dislikes for each video, and what are their corresponding video names?':
-                cursor.execute("""SELECT Title AS Title, LikeCount AS Likes_Count
+                table=pd.read_sql("""SELECT Title AS Title, LikeCount AS Likes_Count
                                     FROM Video_Details
-                                    ORDER BY LikeCount DESC""")
-                df = pd.DataFrame(cursor.fetchall())
-                st.write(df)
+                                    ORDER BY LikeCount DESC""",self.connection)
+                st.write(table)
                 
             elif DataExtraction.questions == '7. What is the total number of views for each channel, and what are their corresponding channel names?':
-                cursor.execute("""SELECT Channel_name AS Channel_Name, total_Views AS Views
+                table=pd.read_sql("""SELECT Channel_name AS Channel_Name, total_Views AS Views
                                     FROM Channels_Details
-                                    ORDER BY total_Views DESC""")
-                df = pd.DataFrame(cursor.fetchall())
-                st.write(df)
-                st.write("### :green[Channels vs Views :]")
+                                    ORDER BY total_Views DESC""",self.connection)
+                st.write("### :green[Channels Views for each Channel :]")
+                st.write(table)
                 
             elif DataExtraction.questions == '8. What are the names of all the channels that have published videos in the year 2022?':
-                cursor.execute("""SELECT Channel_name AS Channel_Name
+                table=pd.read_sql("""SELECT Channel_name AS Channel_Name
                                     FROM Video_Details
                                     WHERE Published_date LIKE '2022%'
                                     GROUP BY Channel_name
-                                    ORDER BY Channel_name""")
-                df = pd.DataFrame(cursor.fetchall())
-                st.write(df)
+                                    ORDER BY Channel_name""",self.connection)
+                st.write("### :green[Name of the Channels that published videos in 2022]")
+                st.write(table)
                 
             elif DataExtraction.questions == '9. What is the average duration of all videos in each channel, and what are their corresponding channel names?':
-                cursor.execute("""select Channel_name as channelname,AVG(Duration) as averageduration from Video_Details group by Channel_name""")
+                table=pd.read_sql("""select Channel_name as channelname,AVG(Duration) as averageduration from Video_Details group by Channel_name""",self.connection)
                 df = pd.DataFrame(cursor.fetchall())
                 st.write("### :green[Average video duration for channels :]")
-                st.write(df)
+                st.write(table)
                                
             elif DataExtraction.questions== '10. Which videos have the highest number of comments, and what are their corresponding channel names?':
-                cursor.execute("""SELECT Channel_name AS Channel_Name,Video_id AS Video_ID,Comments_Count AS Comments
+                table=pd.read_sql("""SELECT Channel_name AS Channel_Name,Video_id AS Video_ID,Comments_Count AS Comments
                                     FROM Video_Details
                                     ORDER BY Comments_Count DESC
-                                    LIMIT 10""")
-                df = pd.DataFrame(cursor.fetchall())
+                                    LIMIT 10""",self.connection)
                 st.write("### :green[Videos with most comments :]")
-                st.write(df)
-                
-
+                st.write(table)
+                 
 #Object Creation
 dataEx=DataExtraction() 
 dataEx.sidebarMenu()
