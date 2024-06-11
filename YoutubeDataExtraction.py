@@ -1,4 +1,5 @@
 import pandas as pd
+<<<<<<< HEAD
 import sqlite3
 from googleapiclient.discovery import build
 import streamlit as st
@@ -7,6 +8,15 @@ import isodate
 
 class DataExtraction:
 
+=======
+import streamlit as st
+import sqlite3
+import streamlit_option_menu as som
+from googleapiclient.discovery import build
+
+class DataExtraction:
+    channel_id=[]
+>>>>>>> e15e4826e8c25b3388cf9bbdfc8df4b622a161e3
     questions=['Click the question that you would like to query',
             '1. What are the names of all the videos and their corresponding channels?',
             '2. Which channels have the most number of videos, and how many videos do they have?',
@@ -28,10 +38,17 @@ class DataExtraction:
         self.Comment_data=[]
         self.selected=object
         self.ch_name=""
+<<<<<<< HEAD
         
         #database connection
         self.connection = sqlite3.connect('SaranCapProjects.db')
 
+=======
+        #database connection
+        self.connection = sqlite3.connect('Saran_Proj.db')
+
+     #Side bar menu specifications
+>>>>>>> e15e4826e8c25b3388cf9bbdfc8df4b622a161e3
     def sidebarMenu(self):
         with st.sidebar:
             self.selected =som.option_menu(None, ["Extract and Store","Questions"], 
@@ -43,13 +60,22 @@ class DataExtraction:
             "icon": {"font-size": "30px"},
             "container" : {"max-width": "6000px"},
             "nav-link-selected": {"background-color": "#FF0000"}})  
+<<<<<<< HEAD
 
+=======
+             
+>>>>>>> e15e4826e8c25b3388cf9bbdfc8df4b622a161e3
     #Extract channel details using channel id            
     def get_channel_details(self,channel_id):
         
         response = self.youtube.channels().list(part = 'snippet,contentDetails,statistics',
+<<<<<<< HEAD
                                                id= channel_id).execute()
         print("response",type(response))
+=======
+                                     id= channel_id)
+        print("response",response)
+>>>>>>> e15e4826e8c25b3388cf9bbdfc8df4b622a161e3
         for i in range(len(response['items'])):
             data = dict(Channel_id = channel_id[i],
                         Channel_name = response['items'][i]['snippet']['title'],
@@ -107,10 +133,13 @@ class DataExtraction:
                                 Definition = video['contentDetails']['definition'],
                                 Caption_status = video['contentDetails']['caption']
                                )
+<<<<<<< HEAD
                 duration = isodate.parse_duration(video_details['Duration'])
                 # Get the total seconds
                 total_seconds = int(duration.total_seconds()) 
                 video_details['Duration']=total_seconds
+=======
+>>>>>>> e15e4826e8c25b3388cf9bbdfc8df4b622a161e3
                 self.video_stats.append(video_details)
         return self.video_stats
     
@@ -139,6 +168,7 @@ class DataExtraction:
             pass
         return self.Comment_data
     
+<<<<<<< HEAD
     #convert List of Dictionary data into pandas data frame and store dataframe into database
     def covert_PdData_StoreSql(self,channels_data, table_names):
        
@@ -180,6 +210,50 @@ class DataExtraction:
         except:
             print(sqlite3.Error)        
 
+=======
+     #Extract and store data to db        
+    def extrtactPage(self):
+        if self.selected == "Extract and Store":
+            st.markdown("#    ")
+            st.write("### Enter YouTube Channel_ID below :")
+            channel_id= st.text_input("Hint : Goto channel's home page > Right click > View page source > Find channel_id").split(',')
+            print("channel id",channel_id)
+            if st.button("Submit"):
+                try:
+                    dataEx.get_channel_details(DataExtraction.channel_id) 
+                    dataEx.get_channel_video_id(DataExtraction.channel_id)
+                    dataEx.get_video_details(dataEx.video_ids)
+                    dataEx.get_comment_details(dataEx.video_ids)
+                    dataEx.store_channel_data()
+                
+                    st.success("Transformation to MySQL Successful!!!")
+                except:
+                    st.error("Channel details already transformed!!")               
+
+    #convert List of Dictionary data into pandas data frame and store dataframe into database
+    def covert_PdData_StoreSql(self,channels_data, channel_names):
+       
+        s=pd.DataFrame(channels_data)
+        dataframe=pd.DataFrame.from_dict(s)
+        print("dataframe",dataframe)
+        column_name = 'Channel_name'
+        value_to_find = self.ch_name
+        result = self.connection.execute((f"SELECT * FROM Channels_Details WHERE {column_name} = :value"), {'value': value_to_find})
+        rows = result.fetchall()
+        if len(rows)!=0:
+            # Print the rows found
+            print("Query Results:")
+            for row in rows:
+                if self.ch_name not in row:
+                    dataframe.to_sql(channel_names, self.connection, if_exists="append", index=False)
+                else:
+                    print("Channel data is already present")
+        else:
+            dataframe.to_sql(channel_names, self.connection, if_exists="append", index=False)
+            tables = self.connection.execute((f"SELECT * FROM Channels_Details WHERE {column_name} = :value"), {'value': value_to_find})
+            st.table(tables)
+                         
+>>>>>>> e15e4826e8c25b3388cf9bbdfc8df4b622a161e3
     def select_tables_fromDB(self,query): 
         tables = pd.read_sql(query, self.connection)
         print("The inserted values are : ",tables)
@@ -206,6 +280,7 @@ class DataExtraction:
         dataEx.select_tables_fromDB("""
             SELECT * from Comments_Details
             """)
+<<<<<<< HEAD
 
     #Extract and store data to db        
     def extrtactPage(self):
@@ -226,6 +301,10 @@ class DataExtraction:
                     st.success("channel data stored successfully")        
                      
 #question page   
+=======
+        
+     #question page   
+>>>>>>> e15e4826e8c25b3388cf9bbdfc8df4b622a161e3
     def questionPage(self):
         
             cursor=self.connection.cursor()
@@ -235,6 +314,10 @@ class DataExtraction:
             
             if DataExtraction.questions == '1. What are the names of all the videos and their corresponding channels?':
                 table=pd.read_sql("""SELECT title AS Video_Title, Channel_name AS Channel_Name FROM Video_Details ORDER BY Channel_name""",self.connection)
+<<<<<<< HEAD
+=======
+                # df = pd.DataFrame(cursor.fetchall())
+>>>>>>> e15e4826e8c25b3388cf9bbdfc8df4b622a161e3
                 print(table)
                 st.write(table)
             
@@ -295,7 +378,12 @@ class DataExtraction:
                 st.write(table)
                 
             elif DataExtraction.questions == '9. What is the average duration of all videos in each channel, and what are their corresponding channel names?':
+<<<<<<< HEAD
                 table=pd.read_sql("""select Channel_name as channelname,AVG(Duration) as Averageduration from Video_Details group by Channel_name""",self.connection)
+=======
+                table=pd.read_sql("""select Channel_name as channelname,AVG(Duration) as averageduration from Video_Details group by Channel_name""",self.connection)
+                df = pd.DataFrame(cursor.fetchall())
+>>>>>>> e15e4826e8c25b3388cf9bbdfc8df4b622a161e3
                 st.write("### :green[Average video duration for channels :]")
                 st.write(table)
                                
@@ -307,7 +395,20 @@ class DataExtraction:
                 st.write("### :green[Videos with most comments :]")
                 st.write(table)
                  
+<<<<<<< HEAD
 dataEx=DataExtraction() 
 dataEx.sidebarMenu()
 dataEx.extrtactPage()
 dataEx.questionPage()
+=======
+#Object Creation
+dataEx=DataExtraction() 
+dataEx.sidebarMenu()
+dataEx.extrtactPage()
+dataEx.questionPage()
+    
+
+
+
+    
+>>>>>>> e15e4826e8c25b3388cf9bbdfc8df4b622a161e3
