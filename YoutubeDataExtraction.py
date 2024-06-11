@@ -207,7 +207,7 @@ class DataExtraction:
             SELECT * from Comments_Details
             """)
 
-     #Extract and store data to db        
+    #Extract and store data to db        
     def extrtactPage(self):
         if self.selected == "Extract and Store":
             st.markdown("#    ")
