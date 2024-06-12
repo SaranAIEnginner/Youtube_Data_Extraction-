@@ -20,14 +20,15 @@ class DataExtraction:
             '10. Which videos have the highest number of comments, and what are their corresponding channel names?']
     
     def __init__(self):
-        self.api_key = "AIzaSyByrwEr_hen1D5IvW3vcpEMX7b8gAwL3oE"
+        self.api_key = "AIzaSyA8yPtH3HkF_FVFCGpJCDw7RaIM5iO9KUs"
         self.youtube = build('youtube','v3',developerKey=self.api_key)
         self.video_ids = []
         self.ch_data = []
         self.video_stats = []
         self.Comment_data=[]
         self.selected=object
-        self.ch_name=""
+        self.Ch_name=''
+        self.Cmt_id=''
         
         #database connection
         self.connection = sqlite3.connect('SaranCapProjects.db')
@@ -59,8 +60,9 @@ class DataExtraction:
                         Description = response['items'][i]['snippet']['description'],
                         Country = response['items'][i]['snippet'].get('country')
                         )
+            self.Ch_name=data['Channel_name']
             self.ch_data.append(data)
-            return self.ch_data,self.ch_name 
+            return self.ch_data,self.Ch_name
     
     # Method to get viodeo id using channel id
     def get_channel_video_id(self,channel_id):
@@ -132,53 +134,71 @@ class DataExtraction:
                         Comment_Text=item['snippet']['topLevelComment']['snippet']['textDisplay'],
                         Comment_Author=item['snippet']['topLevelComment']['snippet']['authorDisplayName'],
                         Comment_Published=item['snippet']['topLevelComment']['snippet']['publishedAt'])
-                    
+
+                self.Cmt_id=data['Comment_Id']    
                 self.Comment_data.append(data)
                 
         except:
             pass
-        return self.Comment_data
+        return self.Comment_data,self.Cmt_id
     
     #convert List of Dictionary data into pandas data frame and store dataframe into database
     def covert_PdData_StoreSql(self,channels_data, table_names):
-       
         dataframedata=pd.DataFrame(channels_data)
         dataframe=pd.DataFrame.from_dict(dataframedata)
         print("dataframe",dataframe)
-        table_name='Channels_Details'
         column_name = 'Channel_name'
-        value_to_find = self.ch_name
+        colName="Comment_Id"
+        value_to_find =self.Ch_name
+        value=self.Cmt_id 
         cursor = self.connection.cursor()
-        try:
-            result = cursor.execute(f"""
-                                            SELECT COUNT(*)
-                                            FROM sqlite_master
-                                            WHERE type='table' AND name='{table_name}';
-                                            """)
-            # Fetch result
-            count = cursor.fetchone()[0]
-            if count > 0:
-                result = self.connection.execute((f"SELECT * FROM {table_name} WHERE {column_name} = :value"), {'value': value_to_find})
-                rows = result.fetchall()
-                if len(rows)!=0:
-                    # Print the rows found
-                    print("Query Results:")
-                    for row in rows:
-                        if self.ch_name not in row:
-                            dataframe.to_sql(table_names, self.connection, if_exists="append", index=False)
-                            st.table(dataframe)
-                        else:   
-                            st.error("Channel details already transformed!!")                
-                            print("Channel data is already present")
-                else:
+        result = cursor.execute(f"""SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='{table_names}';""")
+        count = result.fetchone()[0]
+
+        print("Table presence",count)
+        if count==0:
+            dataframe.to_sql(table_names, self.connection, if_exists="append", index=False)
+            # tables = self.connection.execute((f"SELECT * FROM Channels_Details WHERE {column_name} = :value"), {'value': value_to_find})
+            # st.table(tables)
+            st.success("Transformation to Databse Successfully")
+            print("store data-new table and values")
+        else:
+            if table_names=='Channels_Details':
+                query1 = f"SELECT * FROM Channels_Details WHERE {column_name} = :value"
+                chtable = pd.read_sql(query1, self.connection, params={'value': value_to_find})
+                row1=chtable['Channel_name']
+                print("row1",row1)            
+                # rows=table['Channel_name']
+                print("Length of the query",chtable) 
+                if len(row1)==0:
                     dataframe.to_sql(table_names, self.connection, if_exists="append", index=False)
-                    st.table(dataframe)
+                    st.success("channel data Stored successfully")
+                    print("channel data Stored successfully")  
+                else:
+                    st.error("Channel data already stored")
             
-            else:
-                dataframe.to_sql(table_names, self.connection, if_exists="append", index=False)
-                st.table(dataframe)
-        except:
-            print(sqlite3.Error)        
+            elif table_names=='Video_Details':
+                query2 = f"SELECT * FROM {table_names} WHERE {column_name} = :value"
+                vidtable = pd.read_sql(query2, self.connection, params={'value': value_to_find})
+                row2=vidtable['Channel_name']
+                print("row2",row2)  
+
+                if len(row2)==0:
+                    dataframe.to_sql(table_names, self.connection, if_exists="append", index=False)
+                    st.success("Video data Stored successfully")
+                else:
+                    st.error("Channel data already stored")    
+
+            elif table_names=='Comments_Details':
+                query3 = f"SELECT * FROM {table_names} WHERE {colName} = :value"
+                cmttable = pd.read_sql(query3, self.connection, params={'value': value})
+                row3=cmttable['Comment_Id']
+                print("row3",row3)
+                if len(row3)==0:
+                    dataframe.to_sql(table_names, self.connection, if_exists="append", index=False)
+                    st.success("Comment data Stored successfully")
+                else:
+                    st.error("Channel data already stored")         
 
     def select_tables_fromDB(self,query): 
         tables = pd.read_sql(query, self.connection)
@@ -214,17 +234,16 @@ class DataExtraction:
             st.write("### Enter YouTube Channel_ID below :")
             channel_id= st.text_input("Hint : Goto channel's home page.Right click.View page source.Find channel_id").split(',')
             print("channel id",channel_id)
-            if st.button("Submit"):
-                                  
+            if st.button("Submit"): 
+                                   
                     dataEx.get_channel_details(channel_id) 
                     dataEx.get_channel_video_id(channel_id)
                     dataEx.get_video_details(dataEx.video_ids)
                     dataEx.get_comment_details(dataEx.video_ids)
                     dataEx.store_channel_data()
                     dataEx.store_video_data()
-                    dataEx.store_comment_data()    
-                    st.success("channel data stored successfully")        
-                     
+                    dataEx.store_comment_data()
+                                             
 #question page   
     def questionPage(self):
         
@@ -239,17 +258,16 @@ class DataExtraction:
                 st.write(table)
             
             elif DataExtraction.questions == '2. Which channels have the most number of videos, and how many videos do they have?':
-                table=pd.read_sql("""SELECT channel_name 
-                AS Channel_Name, Total_videos AS Total_Videos
+                table=pd.read_sql("""SELECT channel_name,Total_videos
                                     FROM Channels_Details
-                                    ORDER BY Total_videos DESC""",self.connection)
+                                    ORDER BY CAST(Total_videos AS INT) DESC""",self.connection)
                 st.write("### :green[Number of videos in each channel :]")
                 st.write(table)
                        
             elif DataExtraction.questions == '3. What are the top 10 most viewed videos and their respective channels?':
-                table=pd.read_sql("""SELECT Channel_Name AS Channel_Name, Title AS Video_Title, ViewCount AS Views 
+                table=pd.read_sql("""SELECT Channel_Name, Title AS Video_Title, ViewCount AS Views 
                                     FROM Video_Details
-                                    ORDER BY ViewCount DESC
+                                    ORDER BY CAST(ViewCount AS INT) DESC
                                     LIMIT 10""",self.connection)
                 st.write("### :green[Top 10 most viewed videos :]")
                 st.write(table)
@@ -260,33 +278,33 @@ class DataExtraction:
                                     LEFT JOIN (SELECT Video_id,COUNT(Comment_Id) AS Comments_Count
                                     FROM Comments_Details GROUP BY Video_id) AS b
                                     ON a.Video_id = b.Video_id
-                                    ORDER BY b.Comments_Count DESC""",self.connection)
+                                    ORDER BY CAST(b.Comments_Count AS INT) DESC""",self.connection)
                 st.write("### :green[Comments on Videos and corresponding Title :]")
                 st.write(table)
                 
             elif DataExtraction.questions == '5. Which videos have the highest number of likes, and what are their corresponding channel names?':
                 table=pd.read_sql("""SELECT Channel_name AS Channel_Name,Title AS Title,LikeCount AS Likes_Count 
                                     FROM Video_Details
-                                    ORDER BY LikeCount DESC
+                                    ORDER BY CAST(LikeCount AS INT) DESC
                                     LIMIT 10""",self.connection)
                 st.write("### :green[Top 10 most liked videos :]")
                 st.write(table)
                                
-            elif DataExtraction.questions == '6. What is the total number of likes and dislikes for each video, and what are their corresponding video names?':
+            elif DataExtraction.questions == '6. What is the total number of likes for each video, and what are their corresponding video names?':
                 table=pd.read_sql("""SELECT Title AS Title, LikeCount AS Likes_Count
                                     FROM Video_Details
-                                    ORDER BY LikeCount DESC""",self.connection)
+                                    ORDER BY CAST(LikeCount AS INT) DESC""",self.connection)
                 st.write(table)
                 
             elif DataExtraction.questions == '7. What is the total number of views for each channel, and what are their corresponding channel names?':
-                table=pd.read_sql("""SELECT Channel_name AS Channel_Name, total_Views AS Views
+                table=pd.read_sql("""SELECT Channel_name, Views
                                     FROM Channels_Details
-                                    ORDER BY total_Views DESC""",self.connection)
+                                    ORDER BY CAST(Views AS INT) DESC""",self.connection)
                 st.write("### :green[Channels Views for each Channel :]")
                 st.write(table)
                 
             elif DataExtraction.questions == '8. What are the names of all the channels that have published videos in the year 2022?':
-                table=pd.read_sql("""SELECT Channel_name AS Channel_Name
+                table=pd.read_sql("""SELECT Channel_name
                                     FROM Video_Details
                                     WHERE Published_date LIKE '2022%'
                                     GROUP BY Channel_name
@@ -295,14 +313,14 @@ class DataExtraction:
                 st.write(table)
                 
             elif DataExtraction.questions == '9. What is the average duration of all videos in each channel, and what are their corresponding channel names?':
-                table=pd.read_sql("""select Channel_name as channelname,AVG(Duration) as Averageduration from Video_Details group by Channel_name""",self.connection)
+                table=pd.read_sql("""select Channel_name as channelname,AVG(Duration) as Average_Duration_in_Seconds from Video_Details group by Channel_name ORDER BY Duration DESC""",self.connection)
                 st.write("### :green[Average video duration for channels :]")
                 st.write(table)
                                
             elif DataExtraction.questions== '10. Which videos have the highest number of comments, and what are their corresponding channel names?':
                 table=pd.read_sql("""SELECT Channel_name AS Channel_Name,Video_id AS Video_ID,Comments_Count AS Comments
                                     FROM Video_Details
-                                    ORDER BY Comments_Count DESC
+                                    ORDER BY CAST(Comments_Count AS INT) DESC
                                     LIMIT 10""",self.connection)
                 st.write("### :green[Videos with most comments :]")
                 st.write(table)
