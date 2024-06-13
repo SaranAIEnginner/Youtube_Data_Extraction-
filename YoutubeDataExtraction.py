@@ -172,6 +172,8 @@ class DataExtraction:
                 print("Length of the query",chtable) 
                 if len(row1)==0:
                     dataframe.to_sql(table_names, self.connection, if_exists="append", index=False)
+                    chtable = pd.read_sql(query1, self.connection, params={'value': value_to_find})
+                    st.table(chtable)
                     st.success("channel data Stored successfully")
                     print("channel data Stored successfully")  
                 else:
@@ -187,7 +189,7 @@ class DataExtraction:
                     dataframe.to_sql(table_names, self.connection, if_exists="append", index=False)
                     st.success("Video data Stored successfully")
                 else:
-                    st.error("Channel data already stored")    
+                    st.error("Video data already stored")    
 
             elif table_names=='Comments_Details':
                 query3 = f"SELECT * FROM {table_names} WHERE {colName} = :value"
@@ -198,7 +200,7 @@ class DataExtraction:
                     dataframe.to_sql(table_names, self.connection, if_exists="append", index=False)
                     st.success("Comment data Stored successfully")
                 else:
-                    st.error("Channel data already stored")         
+                    st.error("Comment data already stored")         
 
     def select_tables_fromDB(self,query): 
         tables = pd.read_sql(query, self.connection)
@@ -313,7 +315,7 @@ class DataExtraction:
                 st.write(table)
                 
             elif DataExtraction.questions == '9. What is the average duration of all videos in each channel, and what are their corresponding channel names?':
-                table=pd.read_sql("""select Channel_name as channelname,AVG(Duration) as Average_Duration_in_Seconds from Video_Details group by Channel_name ORDER BY Duration DESC""",self.connection)
+                table=pd.read_sql("""select Channel_name as channelname,AVG(Duration)/60.0 as Average_Duration from Video_Details group by Channel_name ORDER BY Duration DESC""",self.connection)
                 st.write("### :green[Average video duration for channels :]")
                 st.write(table)
                                
