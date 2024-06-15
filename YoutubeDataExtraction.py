@@ -20,18 +20,18 @@ class DataExtraction:
             '10. Which videos have the highest number of comments, and what are their corresponding channel names?']
     
     def __init__(self):
-        self.api_key = "AIzaSyA8yPtH3HkF_FVFCGpJCDw7RaIM5iO9KUs"
+        self.api_key = "AIzaSyArJnOxpH68pvwAKSqKW-U7mgXM3DWngtQ"
         self.youtube = build('youtube','v3',developerKey=self.api_key)
         self.video_ids = []
         self.ch_data = []
         self.video_stats = []
         self.Comment_data=[]
         self.selected=object
+        self.ch_name=""
         self.Ch_name=''
         self.Cmt_id=''
-        
         #database connection
-        self.connection = sqlite3.connect('SaranCapProjects.db')
+        self.connection = sqlite3.connect('Saran_Proj.db')
 
     def sidebarMenu(self):
         with st.sidebar:
@@ -45,6 +45,7 @@ class DataExtraction:
             "container" : {"max-width": "6000px"},
             "nav-link-selected": {"background-color": "#FF0000"}})  
 
+    
     #Extract channel details using channel id            
     def get_channel_details(self,channel_id):
         
@@ -130,6 +131,7 @@ class DataExtraction:
 
             for item in response['items']:
                 data=dict(Comment_Id=item['snippet']['topLevelComment']['id'],
+                        Channel_id = item['snippet']['channelId'],
                         Video_Id=item['snippet']['topLevelComment']['snippet']['videoId'],
                         Comment_Text=item['snippet']['topLevelComment']['snippet']['textDisplay'],
                         Comment_Author=item['snippet']['topLevelComment']['snippet']['authorDisplayName'],
@@ -187,6 +189,7 @@ class DataExtraction:
 
                 if len(row2)==0:
                     dataframe.to_sql(table_names, self.connection, if_exists="append", index=False)
+                    vidtable = pd.read_sql(query2, self.connection, params={'value': value_to_find})
                     st.success("Video data Stored successfully")
                 else:
                     st.error("Video data already stored")    
@@ -198,6 +201,7 @@ class DataExtraction:
                 print("row3",row3)
                 if len(row3)==0:
                     dataframe.to_sql(table_names, self.connection, if_exists="append", index=False)
+                    cmttable = pd.read_sql(query3, self.connection, params={'value': value})
                     st.success("Comment data Stored successfully")
                 else:
                     st.error("Comment data already stored")         
@@ -229,27 +233,66 @@ class DataExtraction:
             SELECT * from Comments_Details
             """)
 
+    def createtab(self,channelid,table_name):
+        value_to_find =channelid[0]
+        column_name="Channel_id" 
+        query2 = f"SELECT * FROM {table_name} WHERE {column_name} = :value"
+        vidtable = pd.read_sql(query2, self.connection, params={'value': value_to_find})
+        print("row2",vidtable) 
+        # Slider to select the page number
+        page_number =1
+
+        # Calculate the starting and ending indices of the records to display
+        start_idx = (page_number - 1) * len(vidtable)
+        end_idx = start_idx + len(vidtable)
+
+        # Display the dataframe for the selected page
+        st.dataframe(vidtable.iloc[start_idx:end_idx])
+            
+    
+
     #Extract and store data to db        
     def extrtactPage(self):
         if self.selected == "Extract and Store":
-            st.markdown("#    ")
-            st.write("### Enter YouTube Channel_ID below :")
-            channel_id= st.text_input("Hint : Goto channel's home page.Right click.View page source.Find channel_id").split(',')
-            print("channel id",channel_id)
-            if st.button("Submit"): 
-                                   
-                    dataEx.get_channel_details(channel_id) 
-                    dataEx.get_channel_video_id(channel_id)
-                    dataEx.get_video_details(dataEx.video_ids)
-                    dataEx.get_comment_details(dataEx.video_ids)
-                    dataEx.store_channel_data()
-                    dataEx.store_video_data()
-                    dataEx.store_comment_data()
-                                             
+            st.title("YOUTUBE DATA HARVESTING")
+            tab1,tab2 = st.tabs(["$\huge Extract and Store $", "$\huge Search Data $"])
+            with tab1:
+                
+                st.write("### Enter YouTube Channel_ID below :")
+                channel_id= st.text_input("Hint : Goto channel's home page.Right click.View page source.Find channel_id").split(',')
+                print("channel id",channel_id)
+                if st.button("Submit"): 
+                                    
+                        dataEx.get_channel_details(channel_id) 
+                        dataEx.get_channel_video_id(channel_id)
+                        dataEx.get_video_details(dataEx.video_ids)
+                        dataEx.get_comment_details(dataEx.video_ids)
+                        dataEx.store_channel_data()
+                        dataEx.store_video_data()
+                        dataEx.store_comment_data()
+            with tab2:
+               try: 
+                    st.markdown("#  ")
+                    st.write("### Enter YouTube Channel_ID below :")
+                    chan_id= st.text_input("Hint : Enter channel_id").split(',')
+                    print("channel id",chan_id)
+        
+                    if st.button("Channel Data"):
+                        dataEx.createtab(chan_id,"Channels_Details")
+                
+                    if st.button("Video Data"):
+                        dataEx.createtab(chan_id,"Video_Details")
+                
+                    if st.button("Comment Data"):
+                        dataEx.createtab(chan_id,"Comments_Details")  
+               except:
+                   st.error("Please Insert Channel's Data")                    
+
+                
+                                                         
 #question page   
     def questionPage(self):
         
-            cursor=self.connection.cursor()
             if self.selected == "Questions":    
                 st.write("## :orange[Select any question to get Insights]")
                 DataExtraction.questions = st.selectbox('Questions',DataExtraction.questions)         
